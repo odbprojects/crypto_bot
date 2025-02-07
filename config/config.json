@@ -1,0 +1,13 @@
+{
+    "settings": {
+        "base_url": "https://testnet.binance.vision",
+        "timeout": "30",
+        "retry_attempts": "3",
+        "retry_delay": "1000",
+        "min_order_size": "10.0",
+        "default_market": "BTCUSDT",
+        "max_slippage": "0.1",
+        "price_precision": "2",
+        "quantity_precision": "8"
+    }
+}
