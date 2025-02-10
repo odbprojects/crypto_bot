@@ -30,76 +30,85 @@ std::string BinanceAPI::hmac_sha256(const std::string &key, const std::string &d
 }
 
 // Send authenticated request to Binance API
-std::string BinanceAPI::send_signed_request(const std::string &endpoint, const std::string &query) {
-    // Prepare query with timestamp and signature
-    std::string full_query = query + "&timestamp=" + std::to_string(time(0) * 1000);
-    std::string signature = hmac_sha256(config.getApiSecret(), full_query);
-    if (signature.empty()) {
-        std::cerr << "Failed to generate signature" << std::endl;
-        return "";
-    }
+std::string BinanceAPI::send_signed_request(const std::string &endpoint, const std::string &query, const std::string &method) {
+    // Get current timestamp in milliseconds using chrono
+    auto now = std::chrono::system_clock::now();
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
     
-    std::string url = config.getSetting("base_url") + endpoint + "?" + full_query + "&signature=" + signature;
+    // Build the query string carefully
+    std::string params = query;
+    if (!params.empty() && params.back() != '&') {
+        params += '&';
+    }
+    params += "timestamp=" + std::to_string(millis);
+    
+    // Calculate signature
+    std::string signature = hmac_sha256(config.getApiSecret(), params);
+    
+    // Build final query with signature
+    std::string final_params = params + "&signature=" + signature;
+    
+    std::string url = config.getSetting("base_url") + endpoint;
     
     CURL* curl = curl_easy_init();
     if (!curl) return "";
 
-    // Set up request headers with API key
+    // Set up headers
     struct curl_slist* headers = NULL;
-    std::string auth_header = "X-MBX-APIKEY: " + config.getApiKey();
-    headers = curl_slist_append(headers, auth_header.c_str());
-    if (!headers) {
-        std::cerr << "Failed to create headers" << std::endl;
-        curl_easy_cleanup(curl);
-        return "";
-    }
-
+    headers = curl_slist_append(headers, ("X-MBX-APIKEY: " + config.getApiKey()).c_str());
+    
     std::string response;
     
-    // Configure CURL options
-    CURLcode code = CURLE_OK;
-    int timeout = std::stoi(config.getSetting("timeout", "30"));
+    curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
     
-    if ((code = curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1)) != CURLE_OK ||
-        (code = curl_easy_setopt(curl, CURLOPT_URL, url.c_str())) != CURLE_OK ||
-        (code = curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L)) != CURLE_OK ||
-        (code = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers)) != CURLE_OK ||
-        (code = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L)) != CURLE_OK ||
-        (code = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L)) != CURLE_OK ||
-        (code = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback)) != CURLE_OK ||
-        (code = curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout)) != CURLE_OK ||
-        (code = curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response)) != CURLE_OK) {
-        std::cerr << "Failed to set CURL options: " << curl_easy_strerror(code) << std::endl;
-        curl_slist_free_all(headers);
-        curl_easy_cleanup(curl);
-        return "";
+    if (method == "POST") {
+        // For POST requests
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_POST, 1L);
+        
+        // Use COPYPOSTFIELDS and append parameters to URL instead
+        std::string full_url = url + "?" + final_params;
+        curl_easy_setopt(curl, CURLOPT_URL, full_url.c_str());
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");  // Empty POST body
+        
+        // Minimal debug output
+        std::cout << "Sending order to: " << url << std::endl;
+    } else {
+        // For GET requests
+        std::string full_url = url + "?" + final_params;
+        curl_easy_setopt(curl, CURLOPT_URL, full_url.c_str());
+        curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
     }
 
-    // Execute request with retry logic
-    int retry_attempts = std::stoi(config.getSetting("retry_attempts", "3"));
-    int retry_delay = std::stoi(config.getSetting("retry_delay", "1000"));
+    // Execute request
+    CURLcode res = curl_easy_perform(curl);
     
-    CURLcode res;
-    for (int i = 0; i < retry_attempts; i++) {
-        res = curl_easy_perform(curl);
-        if (res == CURLE_OK) {
-            long http_code = 0;
-            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-            if (http_code != 200) {
-                std::cerr << "HTTP Error " << http_code << ": " << response << std::endl;
-            }
-            break;
-        }
-        if (i < retry_attempts - 1) {
-            std::cerr << "Request failed, retrying in " << retry_delay << "ms..." << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds(retry_delay));
-        }
+    // Get HTTP response code and headers
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    
+    // Print response headers for debugging
+    if (http_code >= 400) {
+        char* content_type;
+        curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &content_type);
+        std::cerr << "HTTP error " << http_code << std::endl;
+        std::cerr << "Content-Type: " << (content_type ? content_type : "unknown") << std::endl;
+        std::cerr << "Response: " << response << std::endl;
     }
-
+    
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
     
-    return (res == CURLE_OK) ? response : "";
+    if (res != CURLE_OK) {
+        std::cerr << "Failed to execute request: " << curl_easy_strerror(res) << std::endl;
+        return "";
+    }
+
+    return response;
 }
 
 // Send unauthenticated request to Binance API

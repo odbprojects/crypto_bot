@@ -114,39 +114,64 @@ bool OrderManager::validateOrder(const std::string& symbol,
     return true;
 }
 
-std::string OrderManager::placeMarketOrder(const std::string& symbol, 
-                                         const std::string& side, 
-                                         double quantity) {
-    if (!validateOrder(symbol, side, "MARKET", quantity, getCurrentPrice(symbol))) {
-        return "Validation failed";
+std::string OrderManager::placeMarketOrder(const std::string& symbol, const std::string& side, double quantity) {
+    // Format the parameters exactly as Binance expects
+    std::stringstream query;
+    query << std::fixed << std::setprecision(8);
+    query << "symbol=" << symbol
+          << "&type=MARKET"
+          << "&side=" << side
+          << "&quantity=" << quantity;
+    
+    // Send POST request
+    std::string response = api.send_signed_request("/api/v3/order", query.str(), "POST");
+    
+    // Parse and format the response
+    try {
+        json j = json::parse(response);
+        std::cout << "\nMarket Order Result:" << std::endl;
+        std::cout << "Status: " << j["status"].get<std::string>() << std::endl;
+        std::cout << "Order ID: " << j["orderId"].get<int>() << std::endl;
+        std::cout << "Price: " << j["fills"][0]["price"].get<std::string>() << " USDT" << std::endl;
+        std::cout << "Quantity: " << j["executedQty"].get<std::string>() << " BTC" << std::endl;
+        std::cout << "Total: " << j["cummulativeQuoteQty"].get<std::string>() << " USDT\n" << std::endl;
+    } catch (const std::exception& e) {
+        std::cout << "Raw response: " << response << std::endl;
     }
     
-    std::ostringstream query;
-    query << "symbol=" << symbol 
-          << "&side=" << side 
-          << "&type=MARKET"
-          << "&quantity=" << std::fixed << std::setprecision(8) << quantity;
-    
-    return api.send_signed_request("/api/v3/order", query.str());
+    return response;
 }
 
-std::string OrderManager::placeLimitOrder(const std::string& symbol, 
-                                        const std::string& side, 
-                                        double quantity, 
-                                        double price) {
-    if (!validateOrder(symbol, side, "LIMIT", quantity, price)) {
-        return "Validation failed";
+std::string OrderManager::placeLimitOrder(const std::string& symbol, const std::string& side, double quantity, double price) {
+    // Format the parameters exactly as Binance expects
+    std::stringstream query;
+    query << std::fixed << std::setprecision(8);
+    query << "symbol=" << symbol
+          << "&type=LIMIT"
+          << "&side=" << side
+          << "&timeInForce=GTC"
+          << "&quantity=" << quantity
+          << "&price=" << std::setprecision(2) << price;
+    
+    std::string queryStr = query.str();
+    std::cout << "Debug - Limit Order Query: " << queryStr << std::endl;
+    
+    // Send POST request
+    std::string response = api.send_signed_request("/api/v3/order", queryStr, "POST");
+    
+    // Parse and format the response
+    try {
+        json j = json::parse(response);
+        std::cout << "\nLimit Order Result:" << std::endl;
+        std::cout << "Status: " << j["status"].get<std::string>() << std::endl;
+        std::cout << "Order ID: " << j["orderId"].get<int>() << std::endl;
+        std::cout << "Price: " << j["price"].get<std::string>() << " USDT" << std::endl;
+        std::cout << "Quantity: " << j["origQty"].get<std::string>() << " BTC\n" << std::endl;
+    } catch (const std::exception& e) {
+        std::cout << "Raw response: " << response << std::endl;
     }
     
-    std::ostringstream query;
-    query << "symbol=" << symbol 
-          << "&side=" << side 
-          << "&type=LIMIT"
-          << "&timeInForce=GTC"
-          << "&quantity=" << std::fixed << std::setprecision(8) << quantity
-          << "&price=" << std::fixed << std::setprecision(2) << price;
-    
-    return api.send_signed_request("/api/v3/order", query.str());
+    return response;
 }
 
 std::string OrderManager::getAccountInfo() {
