@@ -6,12 +6,17 @@ CXXFLAGS = -std=c++17 \
            -Isrc
 LDFLAGS = -L/opt/homebrew/opt/openssl@3/lib -lssl -lcrypto -lcurl
 
-SRCS = src/main.cpp src/api.cpp src/order_manager.cpp src/config/config.cpp src/strategy.cpp
+SRCS = src/main.cpp src/api.cpp src/order_manager.cpp src/config/config.cpp src/SMA_strategy.cpp
 OBJS = $(SRCS:.cpp=.o)
 TARGET = bot
 
 # Add backtest sources and target
-BACKTEST_SRCS = tests/backtest.cpp tests/backtester.cpp src/strategy.cpp src/order_manager.cpp src/api.cpp src/config/config.cpp
+BACKTEST_SRCS = tests/backtest_C/backtest.cpp \
+                tests/backtest_C/backtester.cpp \
+                src/enhanced_strategy.cpp \
+                src/order_manager.cpp \
+                src/api.cpp \
+                src/config/config.cpp
 BACKTEST_OBJS = $(BACKTEST_SRCS:.cpp=.o)
 BACKTEST_TARGET = backtest
 

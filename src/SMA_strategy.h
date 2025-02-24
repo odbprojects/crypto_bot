@@ -6,10 +6,10 @@
 #include <atomic>
 #include <vector>
 
-class TradingStrategy {
+class SMAStrategy {
 public:
-    TradingStrategy(BinanceAPI& api, OrderManager& orderManager, 
-                   const std::string& symbol, int shortPeriod, int longPeriod);
+    SMAStrategy(BinanceAPI& api, OrderManager& orderManager, 
+                const std::string& symbol, int shortPeriod, int longPeriod);
     
     void run();
     void stop();
@@ -27,4 +27,4 @@ private:
     double lastPrice;
     std::vector<double> priceHistory;
     double calculateSMA(int period) const;
-};
+}; 

@@ -2,7 +2,7 @@
 #include <curl/curl.h>
 #include "api.h"
 #include "order_manager.h"
-#include "strategy.h"
+#include "SMA_strategy.h"
 #include "config/config.h"
 #include <nlohmann/json.hpp>
 #include <chrono>
@@ -68,10 +68,10 @@ int main() {
 
     // Initialize and run the trading strategy
     std::cout << "\nInitializing trading strategy..." << std::endl;
-    TradingStrategy strategy(api, orderManager, symbol, 10, 50);
+    SMAStrategy strategy(api, orderManager, symbol, 10, 50);
 
     std::cout << "Running strategy loop...\n" << std::endl;
-    std::thread strategyThread(&TradingStrategy::run, &strategy);
+    std::thread strategyThread(&SMAStrategy::run, &strategy);
     
     // Run strategy in a separate thread and allow manual exit
     while (true) {

@@ -1,4 +1,4 @@
-#include "strategy.h"
+#include "SMA_strategy.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -7,9 +7,9 @@
 
 using json = nlohmann::json;
 
-// Constructor
-TradingStrategy::TradingStrategy(BinanceAPI& api, OrderManager& orderManager, 
-                               const std::string& symbol, int shortPeriod, int longPeriod)
+// Update all TradingStrategy:: to SMAStrategy::
+SMAStrategy::SMAStrategy(BinanceAPI& api, OrderManager& orderManager, 
+                        const std::string& symbol, int shortPeriod, int longPeriod)
     : api(api)
     , orderManager(orderManager)
     , symbol(symbol)
@@ -17,8 +17,7 @@ TradingStrategy::TradingStrategy(BinanceAPI& api, OrderManager& orderManager,
     , longPeriod(longPeriod)
     , running(false) {}
 
-// Run strategy
-void TradingStrategy::run() {
+void SMAStrategy::run() {
     running = true;
     while (running) {
         std::cout << "Strategy running..." << std::endl;
@@ -26,18 +25,18 @@ void TradingStrategy::run() {
     }
 }
 
-void TradingStrategy::stop() {
+void SMAStrategy::stop() {
     running = false;
 }
 
-void TradingStrategy::updateMarketData(double historicalPrice) {
+void SMAStrategy::updateMarketData(double historicalPrice) {
     priceHistory.push_back(historicalPrice);
     if (priceHistory.size() > longPeriod) {
         priceHistory.erase(priceHistory.begin());
     }
 }
 
-bool TradingStrategy::shouldEnterLong() const {
+bool SMAStrategy::shouldEnterLong() const {
     if (priceHistory.size() < longPeriod) return false;
     
     double shortSMA = calculateSMA(shortPeriod);
@@ -46,7 +45,7 @@ bool TradingStrategy::shouldEnterLong() const {
     return shortSMA > longSMA;
 }
 
-bool TradingStrategy::shouldExitLong() const {
+bool SMAStrategy::shouldExitLong() const {
     if (priceHistory.size() < longPeriod) return false;
     
     double shortSMA = calculateSMA(shortPeriod);
@@ -55,7 +54,7 @@ bool TradingStrategy::shouldExitLong() const {
     return shortSMA < longSMA;
 }
 
-double TradingStrategy::calculateSMA(int period) const {
+double SMAStrategy::calculateSMA(int period) const {
     if (priceHistory.size() < period) return 0.0;
     
     double sum = std::accumulate(
@@ -64,4 +63,4 @@ double TradingStrategy::calculateSMA(int period) const {
         0.0
     );
     return sum / period;
-}
+} 
