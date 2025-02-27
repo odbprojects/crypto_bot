@@ -1,0 +1,29 @@
+# Environment variables and secrets
+.env
+tests/generate_signature.py
+
+# Build files
+*.o
+bot
+backtest
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python virtual environment
+test_venv/
+__pycache__/
+*.pyc
+
+# Logs and data
+*.log
+*.csv
+
+# macOS system files
+.DS_Store
+
+# Windows system files
+Thumbs.db 
